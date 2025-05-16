@@ -2,9 +2,13 @@ name: Google Play Action Runner
 permissions: write-all
 
 on:
-  schedule:
-    - cron: "0 * * * *"
   workflow_dispatch:
+    inputs:
+      version_code:
+        description: "Enter a number to use as the ID"
+        required: true
+        type: number
+
 jobs:
   run-play-tool:
     runs-on: ubuntu-latest
@@ -28,7 +32,9 @@ jobs:
       - name: Run play tool and check release
         id: check-release
         run: |
-          APP_OUTPUT=$(./play -a com.roblox.client -p 2)
+          ID_INPUT=${{ github.event.inputs.version_code }}
+
+          APP_OUTPUT=$(./play -a com.roblox.client -p 2 -v $ID_INPUT -d)
           APP_OUTPUT=$(echo "$APP_OUTPUT" | awk '/downloads/ {found=1} found')
           echo "$APP_OUTPUT"
 
