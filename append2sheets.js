@@ -30,7 +30,10 @@ function formatDate(dateString) {
     manifest.targetSdk ? `API ${manifest.targetSdk}` : '',
     '',
     'https://archive.org/download/com.roblox.client-' + details.match(/version code:\s*(.+)/i)[1].trim() + '/',
-    JSON.stringify(manifest)
+    JSON.stringify({
+      iconMd5: manifest.iconMd5 || '',
+      architectures: manifest.architectures || []
+    })
   ]];
 
   await sheets.spreadsheets.values.append({
