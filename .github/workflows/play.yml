@@ -2,8 +2,9 @@ name: Google Play Action Runner
 permissions: write-all
 
 on:
-  schedule:
-    - cron: "0 * * * *"
+  push:
+    branches:
+      - test2
   workflow_dispatch:
 jobs:
   run-play-tool:
@@ -43,19 +44,10 @@ jobs:
           echo "APP_OUTPUT<<EOF" >> $GITHUB_OUTPUT
           echo "$APP_OUTPUT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
-          # Check if release exists
-          RELEASE_URL="https://api.github.com/repos/${{ github.repository }}/releases/tags/$VERSION_CODE"
-          if curl --silent --fail "$RELEASE_URL" > /dev/null; then
-            echo "Release $VERSION_CODE already exists."
-            echo "EXISTING_RELEASE=true" >> $GITHUB_OUTPUT
-          else
-            echo "Release $VERSION_CODE does not exist. Downloading APKs..."
             echo "EXISTING_RELEASE=false" >> $GITHUB_OUTPUT
             ./play -a com.roblox.client -p 2 -v $VERSION_CODE
             ./play -a com.roblox.client -p 1 -v $VERSION_CODE
             ./play -a com.roblox.client -p 5 -v $VERSION_CODE
-          fi
 
       - name: Generate metadata
         if: steps.check-release.outputs.EXISTING_RELEASE != 'true'
@@ -68,49 +60,3 @@ jobs:
         env:
           VERSION_CODE: ${{ steps.check-release.outputs.VERSION_CODE }}
           UPDATED_ON: ${{ steps.check-release.outputs.UPDATED_ON }}
-
-      - name: Create release and upload APKs
-        if: steps.check-release.outputs.EXISTING_RELEASE != 'true'
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ steps.check-release.outputs.VERSION_CODE }}
-          name: "${{ steps.check-release.outputs.VERSION_NAME }} (${{ steps.check-release.outputs.VERSION_CODE }})"
-          body: ${{ steps.check-release.outputs.APP_OUTPUT }}
-          artifacts: ./*.apk,manifest.json
-
-      - name: Append row to Google Sheet
-        if: steps.check-release.outputs.EXISTING_RELEASE != 'true'
-        run: |
-          npm install googleapis
-          node append2sheets.js
-        env:
-          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-          APP_OUTPUT: ${{ steps.check-release.outputs.APP_OUTPUT }}
-
-      - name: Upload APKs to Archive.org
-        if: steps.check-release.outputs.EXISTING_RELEASE != 'true'
-        run: |
-          curl -sL https://archive.org/download/ia-pex/ia > /usr/local/bin/ia
-          chmod +x /usr/local/bin/ia
-
-          # Configure IA CLI with credentials
-          mkdir -p ~/.config/internetarchive
-          echo "[s3]" > ~/.config/internetarchive/ia.ini
-          echo "access=$IA_ACCESS_KEY" >> ~/.config/internetarchive/ia.ini
-          echo "secret=$IA_SECRET_KEY" >> ~/.config/internetarchive/ia.ini
-
-          ITEM_ID="com.roblox.client-${{ steps.check-release.outputs.VERSION_CODE }}"
-          FORMATTED_DATE=$(date -d "${{ steps.check-release.outputs.UPDATED_ON }}" +"%Y-%m-%d")
-          FORMATTED_APP_OUTPUT=$(echo "${{ steps.check-release.outputs.APP_OUTPUT }}" | sed ':a;N;$!ba;s/\n/<br>/g')
-
-          ia upload "$ITEM_ID" ./*.apk manifest.json \
-            --metadata="collection:open_source_software" \
-            --metadata="mediatype:software" \
-            --metadata="title:Roblox APK ${{ steps.check-release.outputs.VERSION_NAME }}" \
-            --metadata="description:$FORMATTED_APP_OUTPUT<br><br>Powered by <a href=\"https://github.com/Roblox-DeployHistory-Updates/android-runner\">Google Play Action Runner</a>" \
-            --metadata="subject:Roblox;APK;Android;Google Play;DeployHistoryUpdates" \
-            --metadata="creator:Roblox" \
-            --metadata="date:$FORMATTED_DATE"
-        env:
-          IA_ACCESS_KEY: ${{ secrets.ARCHIVE_ORG_ACCESS_KEY }}
-          IA_SECRET_KEY: ${{ secrets.ARCHIVE_ORG_SECRET_KEY }}
