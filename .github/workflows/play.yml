@@ -61,7 +61,7 @@ jobs:
         if: steps.check-release.outputs.EXISTING_RELEASE != 'true'
         run: |
           curl -sL https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool > /usr/local/bin/apktool
-          curl -sL https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.11.1.jar > /usr/local/bin/apktool.jar
+          curl -sL https://github.com/Yakov5776/Apktool-SkipDist/releases/download/latest/apktool-2.12.1.jar > /usr/local/bin/apktool.jar
           chmod +x /usr/local/bin/apktool
           npm install yaml
           node generate-metadata.js

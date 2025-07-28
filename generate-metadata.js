@@ -39,7 +39,7 @@ try {
     const match = manifestXml.match(new RegExp(`${attr}="([^"]+)"`));
     return match ? match[1] : '';
   };
-  const packageName = getAttr('package');
+  const packageName = 'com.roblox.client'; // HACK NEEDED: apktool is partially broken and cannot parse resources properly
 
   // Find icon file path from manifest
   let iconPath = '';
@@ -56,12 +56,24 @@ try {
     iconPath = iconCandidates.length > 0 ? iconCandidates[0] : '';
   }
 
+  iconPath = '/res/mipmap-hdpi/ic_launcher.png'; // HACK NEEDED: apktool is partially broken and cannot parse resources properly
+
   // Calculate icon md5 if found
   let iconMd5 = '';
   if (iconPath && fs.existsSync(iconPath)) {
     const iconBuf = fs.readFileSync(iconPath);
     iconMd5 = crypto.createHash('md5').update(iconBuf).digest('hex');
   }
+
+  // START HACK: Extract icon from APK directly
+  // This is needed because apktool does not always extract the icon correctly
+  const iconZipPath = 'res/mipmap-hdpi-v4/ic_launcher.png';
+  const iconTmpPath = path.join(tmpDir, 'ic_launcher.png');
+
+  execSync(`unzip -p "${apkFile}" "${iconZipPath}" > "${iconTmpPath}"`);
+  const iconBuf = fs.readFileSync(iconTmpPath);
+  iconMd5 = crypto.createHash('md5').update(iconBuf).digest('hex');
+  // END HACK
 
   // Find architectures from config APKs in current directory
   function detectArchitectures() {
