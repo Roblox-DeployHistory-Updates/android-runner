@@ -2,8 +2,6 @@ name: Google Play Action Runner
 permissions: write-all
 
 on:
-  schedule:
-    - cron: "0 * * * *"
   workflow_dispatch:
 jobs:
   run-play-tool:
@@ -45,16 +43,16 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
           # Check if release exists
-          if git ls-remote --exit-code --tags origin "refs/tags/$VERSION_CODE" >/dev/null 2>&1; then
-            echo "Release $VERSION_CODE already exists."
-            echo "EXISTING_RELEASE=true" >> $GITHUB_OUTPUT
-          else
+          #if git ls-remote --exit-code --tags origin "refs/tags/$VERSION_CODE" >/dev/null 2>&1; then
+          #  echo "Release $VERSION_CODE already exists."
+          #  echo "EXISTING_RELEASE=true" >> $GITHUB_OUTPUT
+          #else
             echo "Release $VERSION_CODE does not exist. Downloading APKs..."
             echo "EXISTING_RELEASE=false" >> $GITHUB_OUTPUT
             ./play -a com.roblox.client -p 2 -v $VERSION_CODE
             ./play -a com.roblox.client -p 1 -v $VERSION_CODE
             ./play -a com.roblox.client -p 5 -v $VERSION_CODE
-          fi
+          #fi
 
       - name: Generate metadata
         if: steps.check-release.outputs.EXISTING_RELEASE != 'true'
@@ -68,23 +66,6 @@ jobs:
           VERSION_CODE: ${{ steps.check-release.outputs.VERSION_CODE }}
           UPDATED_ON: ${{ steps.check-release.outputs.UPDATED_ON }}
 
-      - name: Create release and upload APKs
-        if: steps.check-release.outputs.EXISTING_RELEASE != 'true'
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ steps.check-release.outputs.VERSION_CODE }}
-          name: "${{ steps.check-release.outputs.VERSION_NAME }} (${{ steps.check-release.outputs.VERSION_CODE }})"
-          body: ${{ steps.check-release.outputs.APP_OUTPUT }}
-          artifacts: ./*.apk,manifest.json
-
-      - name: Append row to Google Sheet
-        if: steps.check-release.outputs.EXISTING_RELEASE != 'true'
-        run: |
-          npm install googleapis
-          node append2sheets.js
-        env:
-          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-          APP_OUTPUT: ${{ steps.check-release.outputs.APP_OUTPUT }}
 
       - name: Upload APKs to Archive.org
         if: steps.check-release.outputs.EXISTING_RELEASE != 'true'
